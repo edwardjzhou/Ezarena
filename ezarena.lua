@@ -1,15 +1,20 @@
 print("Ezarena - 'SEE ABILITY PORTRAITS'");
+local debugging = false;
 -- https://wowwiki-archive.fandom.com/wiki/API_UnitCastingInfo
--- "UNIT_SPELLCAST_SUCCEEDED": even when resisted, multiple hits of same button
--- UnitName
--- UnitGUID
--- /fstack /run
+-- "UNIT_SPELLCAST_SUCCEEDED": even when resisted, multiple hits of same ability
+-- UnitName UnitGUID
+-- /fstack /run *lua code*
 
--- Examples I borrowed from:
+-- GOAL:
+-- 1. Enemy plates have a last used ability on top
+-- 2. Teammates have a portrait of their last used ability next to them
+
+-- Similar addons:
 -- https://github.com/Trufi/TrufiGCD/blob/master/TrufiGCD.lua
 -- platebuffs
 
--- official Arena API from blizzard to figure out how to figure out who arena 1 is and who party1 and party2 are
+-- Blizzard's Arena API: 
+-- to figure out how to figure out who arena 1 is and who party1 and party2 are and how many PORTRAITs to create
 -- https://github.com/tomrus88/BlizzardInterfaceCode/blob/master/Interface/AddOns/Blizzard_ArenaUI/Blizzard_ArenaUI.lua
 -- 	self:RegisterEvent("ARENA_OPPONENT_UPDATE");
 
@@ -25,51 +30,95 @@ print("Ezarena - 'SEE ABILITY PORTRAITS'");
 -- UI coordinates: https://wowwiki-archive.fandom.com/wiki/UI_coordinates
 -- in toc: ## SavedVariables: PB_DB
  
+local ezarena = {};
+local roles = {"player", "party1", "party2"};
+function ezarena:Setup()
+    for k, v in 
 
--- Make frame
-local testFrame = CreateFrame("Frame", "Ezarena_PLAYER", UIParent);
-testFrame:SetFrameStrata("HIGH");
-testFrame:SetWidth(90);
-testFrame:SetHeight(90);
-local testTexture = testFrame:CreateTexture(nil, "BACKGROUND");
-testTexture:SetTexture("Interface\\CharacterFrame\\TempPortrait");
-testTexture:SetAllPoints(testFrame);
-testFrame.texture = testTexture;
-testFrame:SetPoint("CENTER",80,80); -- up and right
-testFrame:Show();
+end
 
--- Make frame draggable
-testFrame:SetMovable(true);
-testFrame:EnableMouse(true);
-testFrame:RegisterForDrag("LeftButton");
-testFrame:SetScript("OnDragStart", testFrame.StartMoving);
-testFrame:SetScript("OnDragStop", testFrame.StopMovingOrSizing);
+function ezarena:MakeFrame(role)
+    -- Make a frame
+    local f = CreateFrame("Frame", "Ezarena_"..role, UIParent);
+    f:SetFrameStrata("HIGH");
+    f:SetWidth(90);
+    f:SetHeight(90);
+    local testTexture = f:CreateTexture(nil, "BACKGROUND");
+    testTexture:SetTexture("Interface\\CharacterFrame\\TempPortrait");
+    testTexture:SetAllPoints(f);
+    f.texture = testTexture;
+    f:SetPoint("CENTER",80,80); -- up and right
+    f:Show();
+
+    -- Make frame draggable
+    f:SetMovable(true);
+    f:EnableMouse(true);
+    f:RegisterForDrag("LeftButton");
+    f:SetScript("OnDragStart", f.StartMoving);
+    f:SetScript("OnDragStop", f.StopMovingOrSizing);
+
+    local listenedEvent = "UNIT_SPELLCAST_SUCCEEDED"; -- many options to choose from
+-- could we register an event to UIParent ON ADDON LOAD? instead of here?
+    f:RegisterEvent(listenedEvent);
+    -- ability-use events are double/triply/quadruply listened for when they are your TARGET and/or RAID and/or FOCUS and/or PARTY and/or PLAYER
+    f:SetScript("OnEvent", function(self, event, caster, spellName, spellRank, spellTarget) 
+        if(self:isUsefulUnit(caster) == false) then return; end
+        if(debugging == true) then 
+            print("BEGIN");
+            print("Caster: "..caster); -- from my POV, so my target or focus or raid teammate
+            print("Spell: "..spellName);
+            print("Rank: "..spellRank);
+            print("Target: "..spellTarget) ;-- a NUMBER that represents the line in combat log? resets at 255
+            print("SpellId: "..eventSpellId) ;
+            print("SpellTextureLoc: "..icon) ;
+            print("END");
+            for k, v in pairs(f) do
+                print(k,v)
+            end
+        end
+
+        if(event == listenedEvent) then
+            local eventSpellId = f.spells[spellName]
+            local name, rank, icon, castTime, minRange, maxRange, spellID = GetSpellInfo(eventSpellId)
+
+
+            testTexture:SetTexture(icon);
+            testTexture:SetAllPoints(f);
+            f.texture = testTexture;
+            f:Show();
+        end
+
+    end);
+end
+
+
 
 -- Spell successfully casted event handler
-function testFrame:isUsefulUnit(unitName)
-    local usefulRoles = {"party1", "party2", "party3", "player"};
+-- function f:isUsefulUnit(unitName)
+--     local usefulRoles = {"party1", "party2", "party3", "player"};
 
-    for index, value in ipairs(usefulRoles) do
-        if unitName == value then
-            return true;
-        end
-    end
+--     for index, value in ipairs(usefulRoles) do
+--         if unitName == value then
+--             return true;
+--         end
+--     end
 
-    return false;
-end
+--     return false;
+-- end
 
-function testFrame:isPlayer(unitName)
-    local ownName = GetUnitName("player");
+-- function f:isPlayer(unitName)
+--     local ownName = GetUnitName("player");
 
-    if GetUnitName(unitName) == ownName then
-        return true;
-    end
+--     if GetUnitName(unitName) == ownName then
+--         return true;
+--     end
 
-    return false;
-end
+--     return false;
+-- end
+
 
 -- Gets spellId from just the spell's name; taken from core.lua of PlateBuffs
-function testFrame:GetAllSpellIDs()	
+function GetAllSpellIDs()	
 	local spells = {}
 	local name
 
@@ -81,42 +130,64 @@ function testFrame:GetAllSpellIDs()
 	end
 	return spells
 end
+local spells = GetAllSpellIDs();
 
-local listenedEvent = "UNIT_SPELLCAST_SUCCEEDED";
-local debugging = true;
--- could we register an event to UIParent ON WORLD LOAD? instead of here?
-testFrame.spells = testFrame:GetAllSpellIDs();
-testFrame:RegisterEvent(listenedEvent);
 
--- In Lua, if you have a function as a property of a table, and you use a colon (:) instead of a period (.) to reference the function, it will automatically pass the table in as the first argument!
--- events are double/triply/quadruply listened for when they are your TARGET and/or RAID and/or FOCUS and/or PARTY and/or PLAYER
--- FOR CASTERS: arena teammates: raid1, raid2, raid3
-testFrame:SetScript("OnEvent", function(self, event, caster, spellName, spellRank, spellTarget) -- spellTarget is actually line number in combat log?
-    if(debugging == false) then return; end
-    if(self:isUsefulUnit(caster) == false) then return; end
 
-    -- for k, v in testFrame do
-    --     print(k, v)
-    -- end
 
-	if(event == listenedEvent) then
-        local eventSpellId = testFrame.spells[spellName]
-        local name, rank, icon, castTime, minRange, maxRange, spellID = GetSpellInfo(eventSpellId)
-        -- print("BEGIN");
-        -- print("Caster: "..caster); -- from my POV, so my target or focus or raid teammate
-        -- print("Spell: "..spellName);
-        -- print("Rank: "..spellRank);
-        -- print("Target: "..spellTarget) ;-- a NUMBER that represents the line in combat log? resets at 255
-        -- print("SpellId: "..eventSpellId) ;-- a NUMBER that represents the line in combat log? resets at 255
-        -- print("SpellTexture: "..icon) ;-- a NUMBER that represents the line in combat log? resets at 255
-        -- print("END");
 
-        testTexture:SetTexture(icon);
-        testTexture:SetAllPoints(testFrame);
-        testFrame.texture = testTexture;
-        testFrame:Show();
-	end
 
-end);
+
+
+
+-- local activeUnitPlates = {}
+ 
+-- local function AddNameplate(unitID)
+--     local nameplate = C_NamePlate.GetNamePlateForUnit(unitID)
+--     local unitframe = nameplate.UnitFrame
+ 
+--     -- store nameplate and its unitID
+--     activeUnitPlates[unitframe] = unitID
+-- end
+ 
+-- local function RemoveNameplate(unitID)
+--     local nameplate = C_NamePlate.GetNamePlateForUnit(unitID)
+--     local unitframe = nameplate.UnitFrame
+    
+--     -- recycle the nameplate
+--     activeUnitPlates[unitframe] = nil
+-- end
+ 
+-- local f = CreateFrame("Frame")
+-- f:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+-- f:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+ 
+-- f:SetScript("OnEvent", function(self,event,...)
+--     if event == "NAME_PLATE_UNIT_ADDED" then
+--         local unitID = ...
+--         AddNameplate(unitID)
+--     end
+    
+--     if event == "NAME_PLATE_UNIT_REMOVED" then
+--         local unitID = ...
+--         RemoveNameplate(unitID)
+--     end
+-- end
+-- Plates = wipe(Plates)
+-- Visible = 0
+ 
+-- for i, frame in pairs({WorldFrame:GetChildren()}) do
+--     local name = frame:GetName()
+--     if name and strmatch(name, "NamePlate") and frame:IsShown() then
+--         local unitFrame = frame:GetChildren()
+--         local unit = unitFrame and unitFrame:GetAttribute("unit")
+--         if unitFrame and unit then
+--             Plates[unitFrame] = true
+--         end
+--         Visible = Visible + 1
+--     end
+-- end
+
+
 
 
