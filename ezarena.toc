@@ -1,0 +1,5 @@
+## Interface: 30300
+## Title: Ezarena
+## Version: 1.0.0
+## Author: ez
+ezarena.lua
