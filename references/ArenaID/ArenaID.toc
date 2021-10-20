@@ -1,0 +1,9 @@
+## Interface: 30300
+## Title: ArenaID
+## Notes: ArenaIDs instead of level numbers
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libs\LibNameplate-1.0\lib.xml
+
+ArenaID.lua

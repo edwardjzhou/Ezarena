@@ -1,11 +1,9 @@
-print("Ezarena - 'SEE ABILITY PORTRAITS'");
-local debugging = false;
 -- https://wowwiki-archive.fandom.com/wiki/API_UnitCastingInfo
 -- "UNIT_SPELLCAST_SUCCEEDED": even when resisted, multiple hits of same ability
 -- UnitName UnitGUID
--- /fstack /run *lua code*
+-- /fstack /run *lua code* /console scriptErrors 0
 
--- GOAL:
+-- ezarena's goal:
 -- 1. Enemy plates have a last used ability on top
 -- 2. Teammates have a portrait of their last used ability next to them
 
@@ -29,26 +27,117 @@ local debugging = false;
 -- https://wowwiki-archive.fandom.com/wiki/Saving_variables_between_game_sessions
 -- UI coordinates: https://wowwiki-archive.fandom.com/wiki/UI_coordinates
 -- in toc: ## SavedVariables: PB_DB
+-- 3. hide until enter arena
+
+-- DISPELS TRCKING
+-- https://wowwiki-archive.fandom.com/wiki/API_COMBAT_LOG_EVENT#Spell_School
+
+-- references\ArenaID\Libs\LibStub\LibStub.lua
+-- references\ArenaID\Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+-- references\ArenaID\Libs\LibNameplate-1.0\lib.xml
  
+print("Ezarena - 'See Abilities in PvP'");
+local debugging = false;
 local ezarena = {};
 local roles = {"player", "party1", "party2"};
-function ezarena:Setup()
-    for k, v in 
+local spellNamesToSpellIds;
+local size = 50;
+LibNameplate = LibStub("LibNameplate-1.0", true)
 
+-- print(LibNameplate)
+-- print(LibNP, Lib)
+
+-- for k,v in pairs(_G) do 
+--     print(k,v)
+-- end
+
+-- local THROTTLE_TIME = 0.1
+-- local EventHandler = CreateFrame("Frame")
+-- EventHandler:RegisterEvent("PLAYER_ENTERING_WORLD")
+-- EventHandler:SetScript("OnEvent", function(self)
+--     print(12313213, LibNP, Lib)
+	-- local _, instanceType = IsInInstance()
+	
+	-- if instanceType == "arena" then
+	-- 	self.elapsedTime = THROTTLE_TIME
+		
+	-- 	self:SetScript("OnUpdate", function(self, elapsed)
+	-- 		self.elapsedTime = self.elapsedTime + elapsed
+			
+	-- 		if THROTTLE_TIME > self.elapsedTime then return end
+				
+	-- 		for i = 1, GetNumArenaOpponents() do
+	-- 			local player = LibNP:GetNameplateByUnit("arena" .. i)
+	-- 			local pet = LibNP:GetNameplateByUnit("arenapet" .. i)
+				
+	-- 			for _, f in ipairs({player, pet}) do
+	-- 				if f then
+	-- 					local levelText = LibNP:GetLevelRegion(f)
+						
+	-- 					if levelText and levelText.SetText then
+	-- 						levelText:SetText(i)
+	-- 					end
+	-- 				end
+	-- 			end
+	-- 		end
+			
+	-- 		self.elapsedTime = 0
+	-- 	end)
+	-- else
+	-- 	self:SetScript("OnUpdate", nil)
+	-- end
+-- end)
+-- hooksecurefunc("TargetFrame_CheckLevel", function (self)
+-- 	if IsActiveBattlefieldArena() and self.unit then
+-- 		for i = 1, GetNumArenaOpponents() do
+-- 			for _, u in ipairs({"arena", "arenapet"}) do
+-- 				if UnitIsUnit(self.unit, u .. i) then
+-- 					self.levelText:SetText(i)
+-- 				end
+-- 			end
+-- 		end
+-- 	end
+-- end)
+
+
+
+
+
+-- Gets spellId from just the spell's name; taken from core.lua of PlateBuffs
+local function GetAllSpellIDs()	
+	local spells = {};
+	local name;
+
+	for i = 76567, 1, -1 do
+		name = GetSpellInfo(i);
+		if name and not spells[name] then
+			spells[name] = i;
+		end
+	end
+	return spells;
 end
+spellNamesToSpellIds = GetAllSpellIDs();
+
+
+function ezarena:Setup()
+    for _, role in ipairs(roles) do
+        self:MakeFrame(role);
+    end
+end
+
 
 function ezarena:MakeFrame(role)
     -- Make a frame
     local f = CreateFrame("Frame", "Ezarena_"..role, UIParent);
     f:SetFrameStrata("HIGH");
-    f:SetWidth(90);
-    f:SetHeight(90);
-    local testTexture = f:CreateTexture(nil, "BACKGROUND");
-    testTexture:SetTexture("Interface\\CharacterFrame\\TempPortrait");
-    testTexture:SetAllPoints(f);
-    f.texture = testTexture;
-    f:SetPoint("CENTER",80,80); -- up and right
-    f:Show();
+    f:SetWidth(size);
+    f:SetHeight(size);
+    local t = f:CreateTexture(nil, "BACKGROUND");
+    t:SetTexture("Interface\\CharacterFrame\\TempPortrait");
+    t:SetAllPoints(f);
+    f.texture = t;
+    f:SetPoint("CENTER", 0, 0); -- up and right
+    -- f:Show();
 
     -- Make frame draggable
     f:SetMovable(true);
@@ -58,12 +147,14 @@ function ezarena:MakeFrame(role)
     f:SetScript("OnDragStop", f.StopMovingOrSizing);
 
     local listenedEvent = "UNIT_SPELLCAST_SUCCEEDED"; -- many options to choose from
--- could we register an event to UIParent ON ADDON LOAD? instead of here?
+    -- could we register an event to UIParent ON ADDON LOAD? instead of here?
     f:RegisterEvent(listenedEvent);
-    -- ability-use events are double/triply/quadruply listened for when they are your TARGET and/or RAID and/or FOCUS and/or PARTY and/or PLAYER
+    
+    -- Spell successfully casted event handler:
+    -- (ability-use events are double/triply/quadruply listened for when they are your TARGET and/or RAID and/or FOCUS and/or PARTY and/or PLAYER)
     f:SetScript("OnEvent", function(self, event, caster, spellName, spellRank, spellTarget) 
-        if(self:isUsefulUnit(caster) == false) then return; end
-        if(debugging == true) then 
+        if caster ~= role then return; end
+        if debugging == true then 
             print("BEGIN");
             print("Caster: "..caster); -- from my POV, so my target or focus or raid teammate
             print("Spell: "..spellName);
@@ -77,63 +168,19 @@ function ezarena:MakeFrame(role)
             end
         end
 
-        if(event == listenedEvent) then
-            local eventSpellId = f.spells[spellName]
+        if event == listenedEvent then
+            local eventSpellId = spellNamesToSpellIds[spellName]
             local name, rank, icon, castTime, minRange, maxRange, spellID = GetSpellInfo(eventSpellId)
-
-
-            testTexture:SetTexture(icon);
-            testTexture:SetAllPoints(f);
-            f.texture = testTexture;
+            t:SetTexture(icon);
+            t:SetAllPoints(f);
+            f.texture = t;
             f:Show();
         end
-
     end);
+
 end
 
-
-
--- Spell successfully casted event handler
--- function f:isUsefulUnit(unitName)
---     local usefulRoles = {"party1", "party2", "party3", "player"};
-
---     for index, value in ipairs(usefulRoles) do
---         if unitName == value then
---             return true;
---         end
---     end
-
---     return false;
--- end
-
--- function f:isPlayer(unitName)
---     local ownName = GetUnitName("player");
-
---     if GetUnitName(unitName) == ownName then
---         return true;
---     end
-
---     return false;
--- end
-
-
--- Gets spellId from just the spell's name; taken from core.lua of PlateBuffs
-function GetAllSpellIDs()	
-	local spells = {}
-	local name
-
-	for i = 76567, 1, -1 do
-		name = GetSpellInfo(i)
-		if name and not spells[name] then
-			spells[name] = i
-		end
-	end
-	return spells
-end
-local spells = GetAllSpellIDs();
-
-
-
+ezarena:Setup();
 
 
 

@@ -2,4 +2,7 @@
 ## Title: Ezarena
 ## Version: 1.0.0
 ## Author: ez
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libs\LibNameplate-1.0\lib.xml
 ezarena.lua
