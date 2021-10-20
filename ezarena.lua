@@ -23,6 +23,8 @@
 -- Extension ideas: 
 -- 1. see what stance a warrior is in
 -- 2. saved variables for UI position on world_exit event
+-- 3. Dispel tracking
+-- 4. arena 1,2,3 in plates instead of level (ArenaNumbers does thsi)
 -- https://www.wowinterface.com/forums/showthread.php?t=19104
 -- https://wowwiki-archive.fandom.com/wiki/Saving_variables_between_game_sessions
 -- UI coordinates: https://wowwiki-archive.fandom.com/wiki/UI_coordinates
@@ -32,61 +34,36 @@
 -- DISPELS TRCKING
 -- https://wowwiki-archive.fandom.com/wiki/API_COMBAT_LOG_EVENT#Spell_School
 
--- references\ArenaID\Libs\LibStub\LibStub.lua
--- references\ArenaID\Libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
--- references\ArenaID\Libs\LibNameplate-1.0\lib.xml
- 
-print("Ezarena - 'See Abilities in PvP'");
+
+ print("|cff00FF00Ezarena|r  - 'See Abilities in PvP'|r")
 local debugging = false;
 local ezarena = {};
 local roles = {"player", "party1", "party2"};
 local spellNamesToSpellIds;
 local size = 50;
-LibNameplate = LibStub("LibNameplate-1.0", true)
 
--- print(LibNameplate)
--- print(LibNP, Lib)
+-- LibNameplates API: https://www.wowace.com/projects/libnameplate-1-0/pages/api
+LibNP = LibStub("LibNameplate-1.0", true)
 
--- for k,v in pairs(_G) do 
---     print(k,v)
--- end
 
--- local THROTTLE_TIME = 0.1
--- local EventHandler = CreateFrame("Frame")
--- EventHandler:RegisterEvent("PLAYER_ENTERING_WORLD")
--- EventHandler:SetScript("OnEvent", function(self)
---     print(12313213, LibNP, Lib)
-	-- local _, instanceType = IsInInstance()
-	
-	-- if instanceType == "arena" then
-	-- 	self.elapsedTime = THROTTLE_TIME
-		
-	-- 	self:SetScript("OnUpdate", function(self, elapsed)
-	-- 		self.elapsedTime = self.elapsedTime + elapsed
-			
-	-- 		if THROTTLE_TIME > self.elapsedTime then return end
+-- 			for i = 1, GetNumArenaOpponents() do
+-- 				local player = LibNP:GetNameplateByUnit("arena" .. i)
+-- 				local pet = LibNP:GetNameplateByUnit("arenapet" .. i)
 				
-	-- 		for i = 1, GetNumArenaOpponents() do
-	-- 			local player = LibNP:GetNameplateByUnit("arena" .. i)
-	-- 			local pet = LibNP:GetNameplateByUnit("arenapet" .. i)
-				
-	-- 			for _, f in ipairs({player, pet}) do
-	-- 				if f then
-	-- 					local levelText = LibNP:GetLevelRegion(f)
+-- 				for _, f in ipairs({player, pet}) do
+-- 					if f then
+-- 						local levelText = LibNP:GetLevelRegion(f)
 						
-	-- 					if levelText and levelText.SetText then
-	-- 						levelText:SetText(i)
-	-- 					end
-	-- 				end
-	-- 			end
-	-- 		end
+-- 						if levelText and levelText.SetText then
+-- 							levelText:SetText(i)
+-- 						end
+-- 					end
+-- 				end
+-- 			end
 			
-	-- 		self.elapsedTime = 0
-	-- 	end)
-	-- else
-	-- 	self:SetScript("OnUpdate", nil)
-	-- end
--- end)
+-- 			self.elapsedTime = 0
+-- 		end)
+
 -- hooksecurefunc("TargetFrame_CheckLevel", function (self)
 -- 	if IsActiveBattlefieldArena() and self.unit then
 -- 		for i = 1, GetNumArenaOpponents() do
@@ -153,6 +130,8 @@ function ezarena:MakeFrame(role)
     -- Spell successfully casted event handler:
     -- (ability-use events are double/triply/quadruply listened for when they are your TARGET and/or RAID and/or FOCUS and/or PARTY and/or PLAYER)
     f:SetScript("OnEvent", function(self, event, caster, spellName, spellRank, spellTarget) 
+        local _, instanceType = IsInInstance();
+	    if instanceType ~= "arena" and role ~= "player" then return; end
         if caster ~= role then return; end
         if debugging == true then 
             print("BEGIN");
@@ -167,6 +146,7 @@ function ezarena:MakeFrame(role)
                 print(k,v)
             end
         end
+-- lib:GetNameplateByUnit(unitID)
 
         if event == listenedEvent then
             local eventSpellId = spellNamesToSpellIds[spellName]
@@ -174,7 +154,7 @@ function ezarena:MakeFrame(role)
             t:SetTexture(icon);
             t:SetAllPoints(f);
             f.texture = t;
-            f:Show();
+            -- f:Show();
         end
     end);
 
