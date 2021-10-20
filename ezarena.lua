@@ -1,85 +1,15 @@
--- https://wowwiki-archive.fandom.com/wiki/API_UnitCastingInfo
--- "UNIT_SPELLCAST_SUCCEEDED": even when resisted, multiple hits of same ability
--- UnitName UnitGUID
--- /fstack /run *lua code* /console scriptErrors 0
-
 -- ezarena's goal:
 -- 1. Enemy plates have a last used ability on top
 -- 2. Teammates have a portrait of their last used ability next to them
 
--- Similar addons:
--- https://github.com/Trufi/TrufiGCD/blob/master/TrufiGCD.lua
--- platebuffs
-
--- Blizzard's Arena API: 
--- to figure out how to figure out who arena 1 is and who party1 and party2 are and how many PORTRAITs to create
--- https://github.com/tomrus88/BlizzardInterfaceCode/blob/master/Interface/AddOns/Blizzard_ArenaUI/Blizzard_ArenaUI.lua
--- 	self:RegisterEvent("ARENA_OPPONENT_UPDATE");
-
--- LUA
--- https://www.lua.org/pil/6.2.html
--- self as first arg to table:func functions 
-
--- Extension ideas: 
--- 1. see what stance a warrior is in
--- 2. saved variables for UI position on world_exit event
--- 3. Dispel tracking
--- 4. arena 1,2,3 in plates instead of level (ArenaNumbers does thsi)
--- https://www.wowinterface.com/forums/showthread.php?t=19104
--- https://wowwiki-archive.fandom.com/wiki/Saving_variables_between_game_sessions
--- UI coordinates: https://wowwiki-archive.fandom.com/wiki/UI_coordinates
--- in toc: ## SavedVariables: PB_DB
--- 3. hide until enter arena
-
--- DISPELS TRCKING
--- https://wowwiki-archive.fandom.com/wiki/API_COMBAT_LOG_EVENT#Spell_School
-
-
- print("|cff00FF00Ezarena|r  - 'See Abilities in PvP'|r")
+ChatFrame1:AddMessage("|cff00FF00Ezarena|r  - 'See Abilities in PvP'|r")
 local debugging = false;
 local ezarena = {};
 local roles = {"player", "party1", "party2"};
 local spellNamesToSpellIds;
 local size = 50;
-
 -- LibNameplates API: https://www.wowace.com/projects/libnameplate-1-0/pages/api
-LibNP = LibStub("LibNameplate-1.0", true)
-
-
--- 			for i = 1, GetNumArenaOpponents() do
--- 				local player = LibNP:GetNameplateByUnit("arena" .. i)
--- 				local pet = LibNP:GetNameplateByUnit("arenapet" .. i)
-				
--- 				for _, f in ipairs({player, pet}) do
--- 					if f then
--- 						local levelText = LibNP:GetLevelRegion(f)
-						
--- 						if levelText and levelText.SetText then
--- 							levelText:SetText(i)
--- 						end
--- 					end
--- 				end
--- 			end
-			
--- 			self.elapsedTime = 0
--- 		end)
-
--- hooksecurefunc("TargetFrame_CheckLevel", function (self)
--- 	if IsActiveBattlefieldArena() and self.unit then
--- 		for i = 1, GetNumArenaOpponents() do
--- 			for _, u in ipairs({"arena", "arenapet"}) do
--- 				if UnitIsUnit(self.unit, u .. i) then
--- 					self.levelText:SetText(i)
--- 				end
--- 			end
--- 		end
--- 	end
--- end)
-
-
-
-
-
+local LibNP = LibStub("LibNameplate-1.0", true)
 -- Gets spellId from just the spell's name; taken from core.lua of PlateBuffs
 local function GetAllSpellIDs()	
 	local spells = {};
@@ -102,7 +32,6 @@ function ezarena:Setup()
     end
 end
 
-
 function ezarena:MakeFrame(role)
     -- Make a frame
     local f = CreateFrame("Frame", "Ezarena_"..role, UIParent);
@@ -114,7 +43,7 @@ function ezarena:MakeFrame(role)
     t:SetAllPoints(f);
     f.texture = t;
     f:SetPoint("CENTER", 0, 0); -- up and right
-    -- f:Show();
+    f:Show();
 
     -- Make frame draggable
     f:SetMovable(true);
@@ -123,8 +52,8 @@ function ezarena:MakeFrame(role)
     f:SetScript("OnDragStart", f.StartMoving);
     f:SetScript("OnDragStop", f.StopMovingOrSizing);
 
-    local listenedEvent = "UNIT_SPELLCAST_SUCCEEDED"; -- many options to choose from
-    -- could we register an event to UIParent ON ADDON LOAD? instead of here?
+    local listenedEvent = "UNIT_SPELLCAST_SUCCEEDED"; -- many options to choose from; could use a table of registered event names pointing to callbacks
+    -- could we register an event to UIParent ON ADDON LOAD or COMBAT_LOG_EVENT_UNFILTERED or ENTER_WORLD? instead of here?
     f:RegisterEvent(listenedEvent);
     
     -- Spell successfully casted event handler:
@@ -154,13 +83,15 @@ function ezarena:MakeFrame(role)
             t:SetTexture(icon);
             t:SetAllPoints(f);
             f.texture = t;
-            -- f:Show();
-        end
+            f:Show();
+        end                             
     end);
 
 end
 
 ezarena:Setup();
+
+
 
 
 
@@ -218,3 +149,71 @@ ezarena:Setup();
 
 
 
+
+-- ARENA 123
+
+-- 			for i = 1, GetNumArenaOpponents() do
+-- 				local player = LibNP:GetNameplateByUnit("arena" .. i)
+-- 				local pet = LibNP:GetNameplateByUnit("arenapet" .. i)
+				
+-- 				for _, f in ipairs({player, pet}) do
+-- 					if f then
+-- 						local levelText = LibNP:GetLevelRegion(f)
+						
+-- 						if levelText and levelText.SetText then
+-- 							levelText:SetText(i)
+-- 						end
+-- 					end
+-- 				end
+-- 			end
+			
+-- 			self.elapsedTime = 0
+-- 		end)
+
+-- hooksecurefunc("TargetFrame_CheckLevel", function (self)
+-- 	if IsActiveBattlefieldArena() and self.unit then
+-- 		for i = 1, GetNumArenaOpponents() do
+-- 			for _, u in ipairs({"arena", "arenapet"}) do
+-- 				if UnitIsUnit(self.unit, u .. i) then
+-- 					self.levelText:SetText(i)
+-- 				end
+-- 			end
+-- 		end
+-- 	end
+-- end)
+
+
+
+
+
+-- https://wowwiki-archive.fandom.com/wiki/API_UnitCastingInfo
+-- "UNIT_SPELLCAST_SUCCEEDED": even when resisted, multiple hits of same ability
+-- UnitName UnitGUID
+-- /fstack /run *lua code* /console scriptErrors 0
+
+-- Similar addons:
+-- https://github.com/Trufi/TrufiGCD/blob/master/TrufiGCD.lua
+-- platebuffs
+
+-- Blizzard's Arena API: 
+-- to figure out how to figure out who arena 1 is and who party1 and party2 are and how many PORTRAITs to create
+-- https://github.com/tomrus88/BlizzardInterfaceCode/blob/master/Interface/AddOns/Blizzard_ArenaUI/Blizzard_ArenaUI.lua
+-- 	self:RegisterEvent("ARENA_OPPONENT_UPDATE");
+
+-- LUA
+-- https://www.lua.org/pil/6.2.html
+-- self as first arg to table:func functions 
+
+-- Extension ideas: 
+-- 1. see what stance a warrior is in
+-- 2. saved variables for UI position on world_exit event
+-- 3. Dispel tracking
+-- 4. arena 1,2,3 in plates instead of level (ArenaNumbers does thsi)
+-- https://www.wowinterface.com/forums/showthread.php?t=19104
+-- https://wowwiki-archive.fandom.com/wiki/Saving_variables_between_game_sessions
+-- UI coordinates: https://wowwiki-archive.fandom.com/wiki/UI_coordinates
+-- in toc: ## SavedVariables: PB_DB
+-- 3. hide until enter arena
+
+-- DISPELS TRCKING
+-- https://wowwiki-archive.fandom.com/wiki/API_COMBAT_LOG_EVENT#Spell_School
